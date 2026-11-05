@@ -159,6 +159,11 @@ function reduceSeriesToRows(
         if (t) {
           f.type = t;
         }
+        // Reducing a text field (e.g. last of a string column) yields strings; once the column is
+        // typed as numeric they must be numbers too, otherwise min/max ranges end up as strings.
+        if (f.type === FieldType.number) {
+          f.values = f.values.map((v) => (typeof v === 'string' ? Number(v) : v));
+        }
       }
     }
 
