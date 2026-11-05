@@ -21,6 +21,33 @@ describe('GroupToSubframe transformer', () => {
     mockTransformationsRegistry([groupToNestedTable]);
   });
 
+  it('should keep aggregation fields (with no values) when the frame has no rows', async () => {
+    const testSeries = toDataFrame({
+      fields: [
+        { name: 'host', type: FieldType.string, values: [] },
+        { name: 'value', type: FieldType.number, values: [] },
+      ],
+    });
+
+    const cfg: DataTransformerConfig<GroupToNestedTableTransformerOptions> = {
+      id: DataTransformerID.groupToNestedTable,
+      options: {
+        fields: {
+          host: { operation: GroupByOperationID.groupBy, aggregations: [] },
+          value: { operation: GroupByOperationID.aggregate, aggregations: [ReducerID.count] },
+        },
+      },
+    };
+
+    await expect(transformDataFrame([cfg], [testSeries])).toEmitValuesWith((received) => {
+      const result = received[0][0];
+      expect(result.length).toBe(0);
+      const countField = result.fields.find((f) => f.name === 'value (count)');
+      expect(countField).toBeDefined();
+      expect(countField!.values).toEqual([]);
+    });
+  });
+
   it('should group values by message and place values in subframe', async () => {
     const testSeries = toDataFrame({
       name: 'A',

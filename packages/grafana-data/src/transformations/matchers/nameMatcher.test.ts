@@ -456,6 +456,23 @@ it('Support fallback multiple names matchers', () => {
   expect(matcher(frame.fields[1], frame, [])).toBeFalsy();
 });
 
+it('only matches the time field named in the list, not every time field', () => {
+  const frame: DataFrame = {
+    fields: [
+      { name: 'time', type: FieldType.time, config: {}, values: [1, 2] },
+      { name: 'created', type: FieldType.time, config: {}, values: [1, 2] },
+    ],
+    length: 2,
+  };
+
+  const matcher = getFieldMatcher({
+    id: FieldMatcherID.byNames,
+    options: { mode: ByNamesMatcherMode.include, names: ['time'] },
+  });
+  expect(matcher(frame.fields[0], frame, [])).toBeTruthy();
+  expect(matcher(frame.fields[1], frame, [])).toBeFalsy();
+});
+
 describe('Fields returned by query with refId', () => {
   it('Match all fields in frame with refId: A', () => {
     const data = [
