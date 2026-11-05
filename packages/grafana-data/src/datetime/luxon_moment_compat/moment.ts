@@ -771,6 +771,19 @@ function normalizeZone(zone: string | Zone): Zone {
   return normalized;
 }
 
+/**
+ * moment-timezone has no data for unknown zone names (e.g. a dashboard saved with time zone "default"):
+ * `moment.tz(input, name)` then stays in UTC and `m.tz(name)` leaves the moment unchanged, whereas an
+ * unknown luxon zone yields an invalid date.
+ */
+function isUnknownZoneName(zone: string | Zone): boolean {
+  if (typeof zone !== 'string') {
+    return false;
+  }
+  const name = normalizeZoneName(zone);
+  return name !== 'UTC' && !IANAZone.isValidZone(name);
+}
+
 function createTimeZoneInfo(name: string): MomentTimeZoneInfo | null {
   if (timeZoneInfoCache.has(name)) {
     return timeZoneInfoCache.get(name) ?? null;
@@ -1032,6 +1045,10 @@ class MomentCompat implements MomentLike {
       return this._dt.zoneName ?? undefined;
     }
 
+    if (isUnknownZoneName(zone)) {
+      return this;
+    }
+
     return this._setDt(this._dt.setZone(normalizeZone(zone), { keepLocalTime }));
   }
 
@@ -1257,7 +1274,12 @@ function makeMoment(input?: MomentInput, options?: MomentOptions, parseOptions?:
     const copy = input.clone();
     return options?.zone ? copy.tz(typeof options.zone === 'string' ? options.zone : options.zone.name) : copy;
   }
-  const normalizedOptions = options?.zone ? { ...options, zone: normalizeZone(options.zone) } : options;
+  const zone = options?.zone
+    ? isUnknownZoneName(options.zone)
+      ? FixedOffsetZone.instance(0)
+      : normalizeZone(options.zone)
+    : undefined;
+  const normalizedOptions = zone ? { ...options, zone } : options;
   const dt = normalizeInput(input, normalizedOptions, parseOptions);
   const locale = DateTime.isDateTime(input)
     ? (input.locale ?? DEFAULT_LOCALE)
